@@ -1,0 +1,2531 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>机器人统一控制平台</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+        }
+
+        h1 { color: #2c3e50; }
+        #status { margin-bottom: 20px; font-weight: bold; }
+
+        /* 机器人选择器样式 */
+        .robot-selector-container {
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            border: 1px solid #bdc3c7;
+            border-radius: 8px;
+            background-color: #ecf0f1;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* 主容器，用于左右布局 */
+        .main-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .control-panel, .visualization-panel {
+            padding: 20px;
+            border: 1px solid #bdc3c7;
+            border-radius: 8px;
+            text-align: center;
+            flex: 1;
+            min-width: 400px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 选项卡样式 */
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            color: #7f8c8d;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 速度控制布局 */
+        .speed-control-layout {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .linear-control, .angular-control {
+            flex: 1;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+
+        .linear-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 200px;
+            margin: 0 auto;
+        }
+
+        .linear-grid button {
+            width: 60px;
+            height: 60px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .linear-up { grid-column: 2; grid-row: 1; }
+        .linear-left { grid-column: 1; grid-row: 2; }
+        .linear-stop { grid-column: 2; grid-row: 2; }
+        .linear-right { grid-column: 3; grid-row: 2; }
+        .linear-down { grid-column: 2; grid-row: 3; }
+
+        /* 优化：角速度按钮改为水平排列 */
+        .angular-buttons {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 15px;
+            max-width: none;
+            margin: 0 auto;
+        }
+
+        .angular-buttons button {
+            width: 120px;
+            height: 60px;
+            font-size: 18px;
+        }
+
+        /* 显示区域四格布局 */
+        .display-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .display-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .display-item h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        /* 统一显示内容容器样式 */
+        .display-content { 
+            width: 100%;
+            height: 200px; /* 固定高度，确保所有格子一样大 */
+            background-color: #2c3e50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #34495e; 
+            overflow: hidden; /* 防止溢出 */
+            position: relative;
+        }
+
+        /* 视频流样式 (适用于 ROS 视频和 USB 视频) */
+        #video_display, #usb_video, .camera-stream {
+            width: 100%;
+            height: 100%;
+            border: none;
+            object-fit: contain;
+            background-color: #000;
+            display: block;
+        }
+
+        /* 3D 点云区域样式 */
+        #cloud_display {
+            width: 100%;
+            height: 200px;
+            background-color: #2c3e50;
+            border: 1px solid #34495e;
+            border-radius: 4px;
+        }
+        .display-item:nth-child(2) #cloud_display {
+            border: none;
+        }
+        
+        /* 按钮和表格样式 */
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 18px;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            background-color: #3498db;
+            color: #ffffff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #2980b9; }
+        table { margin: 0 auto; border-spacing: 5px; }
+
+        select {
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        /* API 控制样式 */
+        .api-control-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        #api_control_select {
+            margin-right: 10px;
+            width: 200px;
+        }
+
+        /* 速度参数样式 */
+        .speed-params {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        /* 机械臂控制样式 */
+        .arm-control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .arm-control-section {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+        }
+
+        .arm-section-title {
+            color: #495057;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+            font-size: 1.1em;
+        }
+
+        .arm-button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+        }
+
+        .arm-btn {
+            padding: 10px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .arm-btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .arm-btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .arm-btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .arm-btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .arm-btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .arm-btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .arm-btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .arm-btn-danger:hover {
+            background: #c82333;
+        }
+
+        .arm-joint-control {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .arm-joint-select-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .arm-joint-select-group label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 14px;
+        }
+
+        .arm-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .arm-slider-container label {
+            min-width: 80px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .arm-angle-value {
+            min-width: 60px;
+            text-align: center;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .arm-incremental-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .arm-incremental-btn {
+            padding: 8px;
+            font-size: 12px;
+        }
+
+        .arm-status-messages {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .arm-status-message {
+            padding: 6px 10px;
+            margin: 4px 0;
+            border-radius: 4px;
+            background: white;
+            border-left: 4px solid #007bff;
+            font-size: 14px;
+        }
+
+        .arm-status-message.success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+
+        .arm-status-message.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .arm-current-pose {
+            background: #e7f3ff;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        /* G1机械臂控制样式 */
+        .g1-control-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+            margin-top: 20px;
+        }
+
+        .g1-control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .g1-control-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .g1-arm-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+
+        .g1-joint-control {
+            margin: 10px 0;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .g1-joint-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .g1-joint-name {
+            font-weight: bold;
+            color: #34495e;
+            font-size: 14px;
+        }
+
+        .g1-joint-value {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 14px;
+        }
+
+        .g1-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .g1-slider-container input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            transition: background 0.3s ease;
+        }
+
+        .g1-slider-container input[type="range"]:active {
+            background: #3498db;
+        }
+
+        .g1-slider-container input[type="number"] {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .g1-control-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .g1-preset-section {
+            grid-column: 1 / -1;
+            background: #e8f4fc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+
+        .g1-preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .g1-log-container {
+            grid-column: 1 / -1;
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .g1-log-entry {
+            margin: 5px 0;
+            padding: 3px;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .g1-timestamp {
+            color: #3498db;
+        }
+
+        .g1-connection-status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .g1-connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .g1-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .g1-status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .g1-connected .g1-status-indicator {
+            background: #28a745;
+        }
+
+        .g1-disconnected .g1-status-indicator {
+            background: #dc3545;
+        }
+
+        .g1-sending-indicator {
+            color: #27ae60;
+            font-size: 12px;
+            margin-left: 5px;
+            display: none;
+        }
+
+        .g1-sending .g1-sending-indicator {
+            display: inline;
+        }
+
+        /* 机器人类型特定控制界面 */
+        .robot-specific-control {
+            display: none;
+        }
+
+        .robot-specific-control.active {
+            display: block;
+        }
+
+        /* 控制界面切换提示 */
+        .control-hint {
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            border-left: 4px solid #3498db;
+        }
+
+        /* G1摄像头样式 */
+        .g1-camera-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .g1-camera-item {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .g1-camera-item h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .g1-camera-display {
+            width: 100%;
+            height: 200px;
+            background-color: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1.0.1/build/roslib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.89.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+
+<body>
+    <h1>机器人统一控制平台</h1>
+
+    <div class="robot-selector-container">
+        <label for="robot-select">选择当前控制的机器人:</label>
+        <select id="robot-select">
+            </select>
+    </div>
+
+    <div id="status">ROS Bridge 连接状态: <span id="status_text" style="color: red;">未连接</span></div>
+
+    <div class="main-container">
+        <div class="control-panel">
+            <h2>机器人控制</h2>
+            
+            <div class="tabs">
+                <button class="tab-button active" data-tab="speed-control">速度控制</button>
+                <button class="tab-button" data-tab="arm-control">机械臂控制</button>
+                <button class="tab-button" data-tab="vla-control">VLA控制</button>
+            </div>
+            
+            <div id="speed-control" class="tab-content active">
+                <div class="control-hint" id="speed-control-hint">
+                    当前控制模式：四足机器人移动控制
+                </div>
+                
+                <div class="speed-control-layout">
+                    <div class="linear-control">
+                        <h3>线速度控制 (WASDX)</h3>
+                        <div class="linear-grid">
+                            <button class="control-button linear-up" data-key="w" data-lin-x="1">↑</button>
+                            <button class="control-button linear-left" data-key="a" data-lin-y="1">←</button>
+                            <button class="control-button linear-stop" data-key="s" data-lin-x="0" data-lin-y="0" data-ang-z="0">●</button>
+                            <button class="control-button linear-right" data-key="d" data-lin-y="-1">→</button>
+                            <button class="control-button linear-down" data-key="x" data-lin-x="-1">↓</button>
+                        </div>
+                    </div>
+                    <div class="angular-control">
+                        <h3>角速度控制 (QE)</h3>
+                        <div class="angular-buttons">
+                            <button class="control-button angular-left" data-key="q" data-ang-z="1">↶ 左转 (Q)</button>
+                            <button class="control-button angular-right" data-key="e" data-ang-z="-1">↷ 右转 (E)</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="speed-params">
+                    <p>
+                        线速度 x (m/s): <input type="number" id="linear_x_speed" value="0.5" step="0.1" style="width: 70px;"> |
+                        线速度 y (m/s): <input type="number" id="linear_y_speed" value="0.3" step="0.1" style="width: 70px;"> |
+                        角速度 z (rad/s): <input type="number" id="angular_z_speed" value="0.5" step="0.1" style="width: 70px;">
+                    </p>
+                </div>
+                
+                <div class="api-control-section">
+                    <h2>运动控制 (API) - /api/sport/request</h2>
+                    <select id="api_control_select"></select>
+                    <button id="send_api_button">发送 API 指令</button>
+                </div>
+            </div>
+            
+            <div id="arm-control" class="tab-content">
+                <div class="control-hint" id="arm-control-hint">
+                    请选择机器人类型以显示相应的机械臂控制界面
+                </div>
+                
+                <!-- GO2 机械臂控制界面 -->
+                <div id="go2-arm-control" class="robot-specific-control">
+                    <div class="arm-control-grid">
+                        <div class="arm-control-section">
+                            <h3 class="arm-section-title">🔧 基础控制</h3>
+                            <div class="arm-button-group">
+                                <button onclick="armSendCommand('enable')" class="arm-btn arm-btn-success">
+                                    🔓 使能机械臂
+                                </button>
+                                <button onclick="armSendCommand('disable')" class="arm-btn arm-btn-danger">
+                                    🔒 禁用机械臂
+                                </button>
+                                <button onclick="armSendCommand('home')" class="arm-btn arm-btn-primary">
+                                    🏠 回零位置
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="arm-control-section">
+                            <h3 class="arm-section-title">🖐️ 夹爪控制 (0-65mm)</h3>
+                            <div class="arm-button-group">
+                                <button onclick="armSetGripperPosition(0)" class="arm-btn arm-btn-success">
+                                    🔤 全开 (0mm)
+                                </button>
+                                <button onclick="armSetGripperPosition(32.5)" class="arm-btn arm-btn-warning">
+                                    ⚖️ 半开 (32.5mm)
+                                </button>
+                                <button onclick="armSetGripperPosition(65)" class="arm-btn arm-btn-danger">
+                                    🔥 全闭 (65mm)
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="arm-control-section">
+                            <h3 class="arm-section-title">🎯 预设姿势</h3>
+                            <div class="arm-button-group">
+                                <button onclick="armSendPresetPose1()" class="arm-btn arm-btn-primary">
+                                    抓取姿势
+                                </button>
+                                <button onclick="armSendPresetPose2()" class="arm-btn arm-btn-primary">
+                                    放置姿势
+                                </button>
+                                <button onclick="armSendPresetPose3()" class="arm-btn arm-btn-primary">
+                                    伸展姿势
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arm-control-section">
+                        <h3 class="arm-section-title">🎛️ 夹爪精确控制</h3>
+                        <div class="arm-slider-container">
+                            <label>夹爪位置:</label>
+                            <input type="range" id="arm_gripper_slider" min="0" max="65" value="0" step="0.5"
+                                   oninput="armUpdateGripperValue(this.value)">
+                            <span class="arm-angle-value" id="arm_gripper_value">0mm</span>
+                            <button onclick="armSetGripperPosition(parseFloat(document.getElementById('arm_gripper_slider').value))" class="arm-btn arm-btn-primary arm-btn-sm">
+                                ➡️ 设置
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="arm-control-section">
+                        <h3 class="arm-section-title">🔢 单关节控制</h3>
+                        <div class="arm-joint-control">
+                            <div class="arm-joint-select-group">
+                                <label>选择关节:</label>
+                                <select id="arm_joint_select">
+                                    <option value="0">关节 0 - 基座 (±135°)</option>
+                                    <option value="1">关节 1 - 肩部 (±90°)</option>
+                                    <option value="2">关节 2 - 肘部 (±90°)</option>
+                                    <option value="3">关节 3 - 腕部1 (±135°)</option>
+                                    <option value="4">关节 4 - 腕部2 (±90°)</option>
+                                    <option value="5">关节 5 - 腕部3 (±135°)</option>
+                                </select>
+                            </div>
+                            <div class="arm-joint-select-group">
+                                <label>目标角度 (°):</label>
+                                <input type="number" id="arm_joint_angle" value="0" min="-135" max="135" step="1">
+                            </div>
+                            <div>
+                                <button onclick="armMoveJointAbsolute()" class="arm-btn arm-btn-primary" style="width: 100%;">
+                                    ➡️ 绝对移动
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arm-control-section">
+                        <h3 class="arm-section-title">🔄 增量控制 (±5°)</h3>
+                        <div class="arm-incremental-buttons">
+                            <button onclick="armMoveAllJointsIncremental([5, 0, 0, 0, 0, 0, 0])" class="arm-btn arm-btn-warning arm-incremental-btn">
+                                ➡️ 整体右转
+                            </button>
+                            <button onclick="armMoveAllJointsIncremental([-5, 0, 0, 0, 0, 0, 0])" class="arm-btn arm-btn-warning arm-incremental-btn">
+                                ⬅️ 整体左转
+                            </button>
+                            <button onclick="armMoveAllJointsIncremental([0, 5, 0, 0, 0, 0, 0])" class="arm-btn arm-btn-warning arm-incremental-btn">
+                                ⬆️ 肩部上抬
+                            </button>
+                            <button onclick="armMoveAllJointsIncremental([0, -5, 0, 0, 0, 0, 0])" class="arm-btn arm-btn-warning arm-incremental-btn">
+                                ⬇️ 肩部下压
+                            </button>
+                            <button onclick="armMoveAllJointsIncremental([0, 0, 5, 0, 0, 0, 0])" class="arm-btn arm-btn-warning arm-incremental-btn">
+                                ↗️ 肘部伸展
+                            </button>
+                            <button onclick="armMoveAllJointsIncremental([0, 0, -5, 0, 0, 0, 0])" class="arm-btn arm-btn-warning arm-incremental-btn">
+                                ↙️ 肘部收缩
+                            </button>
+                            <button onclick="armMoveAllJointsIncremental([0, 0, 0, 5, 0, 0, 0])" class="arm-btn arm-btn-warning arm-incremental-btn">
+                                🔄 腕部旋转
+                            </button>
+                            <button onclick="armMoveAllJointsIncremental([2, 2, 2, 0, 0, 0, 0])" class="arm-btn arm-btn-success arm-incremental-btn">
+                                🚀 整体伸展
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="arm-control-section">
+                        <h3 class="arm-section-title">🎮 多关节控制</h3>
+                        <div class="arm-button-group" style="margin-top: 10px;">
+                            <button onclick="armSendCustomPose()" class="arm-btn arm-btn-warning">
+                                📝 发送自定义姿势
+                            </button>
+                            <button onclick="armRequestCurrentState()" class="arm-btn arm-btn-primary">
+                                📊 刷新位置
+                            </button>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <label>自定义角度 (7个关节):</label>
+                            <input type="text" id="arm_custom_angles" placeholder="[0, -45, 60, 0, 30, 0, 0]" 
+                                   style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                            <small style="color: #666;">格式: [角度0, 角度1, 角度2, 角度3, 角度4, 角度5, 角度6]</small>
+                        </div>
+                    </div>
+
+                    <div class="arm-status-messages" id="arm_status_messages">
+                        <div class="arm-status-message">
+                            <span class="log-timestamp" id="arm_current_time"></span>
+                            等待连接...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- G1 机械臂控制界面 -->
+                <div id="g1-arm-control" class="robot-specific-control">
+                    <div class="g1-control-section">
+                        <h2>🤖 G1机械臂远程控制系统</h2>
+                        <p>基于MQTT WebSocket的实时控制界面 - 拖动滑块实时控制</p>
+                        
+                        <div class="g1-connection-status g1-disconnected" id="g1_connectionStatus">
+                            <span class="g1-status-indicator"></span>
+                            <span id="g1_statusText">未连接到MQTT服务器</span>
+                        </div>
+                        <div class="g1-control-buttons">
+                            <button class="success" onclick="g1EnableArm()">🟢 启用机械臂</button>
+                            <button class="danger" onclick="g1DisableArm()">🔴 禁用机械臂</button>
+                            <button onclick="g1SendAllJoints()">📤 发送所有关节</button>
+                            <button onclick="g1StopArm()">🛑 紧急停止</button>
+                            <button onclick="g1ClearLog()">🗑️ 清空日志</button>
+                        </div>
+                    </div>
+
+                    <div class="g1-control-panel">
+                        <!-- 左臂控制 -->
+                        <div class="g1-arm-section">
+                            <h2>🫲 左臂控制 (7个关节)</h2>
+                            <div id="g1_leftArmControls">
+                                <!-- 左臂关节控制将通过JavaScript动态生成 -->
+                            </div>
+                        </div>
+
+                        <!-- 右臂控制 -->
+                        <div class="g1-arm-section">
+                            <h2>🫱 右臂控制 (7个关节)</h2>
+                            <div id="g1_rightArmControls">
+                                <!-- 右臂关节控制将通过JavaScript动态生成 -->
+                            </div>
+                        </div>
+
+                        <!-- 预设动作 -->
+                        <div class="g1-preset-section">
+                            <h2>🎯 预设动作</h2>
+                            <div class="g1-preset-grid">
+                                <button onclick="g1SendPreset('home')">🏠 归位姿势</button>
+                                <button onclick="g1SendPreset('stretch')">📏 水平伸直</button>
+                                <button onclick="g1SendPreset('wave_left')">👋 左臂挥手</button>
+                                <button onclick="g1SendPreset('wave_right')">👋 右臂挥手</button>
+                                <button onclick="g1SendPreset('grab')">🖐️ 抓取姿势</button>
+                                <button onclick="g1SendPreset('zero')">0️⃣ 零位姿势</button>
+                                <button onclick="g1SendPreset('salute')">✋ 敬礼姿势</button>
+                                <button onclick="g1SendPreset('tpose')">🕴️ T型姿势</button>
+                                <button onclick="g1SendPreset('relax')">😌 放松姿势</button>
+                            </div>
+                        </div>
+
+                        <!-- 自定义命令 -->
+                        <div class="g1-preset-section">
+                            <h2>🔧 自定义命令</h2>
+                            <div class="command-form">
+                                <div class="form-group">
+                                    <label for="g1_jointSelect">选择关节:</label>
+                                    <select id="g1_jointSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                        <!-- 关节选项将通过JavaScript动态生成 -->
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="g1_positionInput">目标位置 (弧度):</label>
+                                    <input type="number" id="g1_positionInput" step="0.01" value="0.0" onchange="g1SendSingleJoint()">
+                                </div>
+                                <button onclick="g1SendSingleJoint()">发送单个关节命令</button>
+                            </div>
+                        </div>
+
+                        <!-- 系统日志 -->
+                        <div class="g1-log-container">
+                            <h3 style="color: white; margin-bottom: 10px;">📋 系统日志</h3>
+                            <div id="g1_logContent">
+                                <div class="g1-log-entry"><span class="g1-timestamp">[系统]</span> 等待连接...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="vla-control" class="tab-content">
+                <h3>TODO: VLA控制界面</h3>
+                <p>VLA控制功能正在开发中...</p>
+            </div>
+        </div>
+
+        <div class="visualization-panel">
+            <h2>传感器数据可视化</h2>
+            
+            <!-- 机器人摄像头和雷达显示区域 -->
+            <div class="display-grid">
+                <div class="display-item">
+                    <h3>机器人摄像头</h3>
+                    <div class="display-content" style="background-color: #000; border: none;">
+                        <img id="video_display" src="" alt="ROS Video Stream" class="camera-stream" />
+                    </div>
+                    <button class="save-btn" onclick="saveCameraImage('video_display', 'robot_camera')">保存图像</button>
+                </div>
+                
+                <div class="display-item">
+                    <h3>机器人雷达</h3>
+                    <div id="cloud_display" class="display-content"></div> 
+                    <button class="save-btn">保存点云</button>
+                </div>
+                
+                <!-- GO2机械臂摄像头 -->
+                <div class="display-item" id="go2-arm-camera-item">
+                    <h3>机械臂摄像头</h3>
+                    <div class="display-content" style="background-color: #000; border: none;">
+                        <img id="arm_video_feed" src="" alt="机械臂摄像头" class="camera-stream">
+                    </div>
+                    <button class="save-btn" onclick="saveCameraImage('arm_video_feed', 'arm_camera')">保存图像</button>
+                </div>
+                
+                <div class="display-item">
+                    <h3>全局摄像头 <button id="open_usb_cam" style="font-size: 14px; padding: 2px 4px;">打开</button></h3>
+                    <div class="display-content" style="background-color: #000;">
+                        <video id="usb_video" autoplay playsinline muted></video>
+                    </div>
+                    <button id="save_usb_btn" class="save-btn" disabled style="background-color: #7f8c8d; border-color: #7f8c8d; cursor: not-allowed;">保存图像</button>
+                </div>
+            </div>
+
+            <!-- G1左右摄像头显示区域 -->
+            <div class="g1-camera-container" id="g1-camera-container">
+                <div class="g1-camera-item">
+                    <h3>G1左摄像头</h3>
+                    <div class="g1-camera-display">
+                        <img id="g1_left_camera" src="" alt="G1左摄像头" class="camera-stream">
+                    </div>
+                    <button class="save-btn" onclick="saveCameraImage('g1_left_camera', 'g1_left_camera')">保存图像</button>
+                </div>
+                <div class="g1-camera-item">
+                    <h3>G1右摄像头</h3>
+                    <div class="g1-camera-display">
+                        <img id="g1_right_camera" src="" alt="G1右摄像头" class="camera-stream">
+                    </div>
+                    <button class="save-btn" onclick="saveCameraImage('g1_right_camera', 'g1_right_camera')">保存图像</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================================
+        // !!! 必 须 修 改 的 配 置: 机器人列表 !!!
+        // ==========================================================
+        const ROBOTS_CONFIG = {
+            'GO2 (18)': {
+                ip: '192.168.1.18',
+                video_port: 5000,
+                arm_camera_port: 5001,  // 添加机械臂摄像头端口
+                type: 'go2'
+            },
+            'GO2 (19)': {
+                ip: '192.168.1.19',
+                video_port: 5000,
+                arm_camera_port: 5001,  // 添加机械臂摄像头端口
+                type: 'go2'
+            },
+            'G1 (20)': {
+                ip: '192.168.1.20',
+                video_port: 5000,
+                left_camera_port: 5001,
+                right_camera_port: 5002,
+                type: 'g1'
+            },
+            '测试': {
+                ip: '192.168.123.18',
+                video_port: 5000,
+                arm_camera_port: 5001,  // 添加机械臂摄像头端口
+                type: 'go2'
+            },
+        };
+
+        // --- ROS 连接常量 ---
+        const ROSBRIDGE_PORT = 9090;
+        const CMD_VEL_TOPIC = '/cmd_vel';
+        const POINT_CLOUD_TOPIC = '/utlidar/cloud';
+        const SPORT_API_TOPIC = '/api/sport/request';
+        const SPORT_API_MSG_TYPE = 'unitree_api/msg/Request';
+        
+        // 核心新增常量：最大重连尝试次数
+        const MAX_RECONNECT_ATTEMPTS = 3; 
+
+        // 新增 API 值字典 (省略)
+        const ROBOT_SPORT_API_IDS = {
+            "DAMP": 1001, "BALANCESTAND": 1002, "STOPMOVE": 1003, "STANDUP": 1004, "STANDDOWN": 1005,
+            "RECOVERYSTAND": 1006, "EULER": 1007, "MOVE": 1008, "SIT": 1009, "RISESIT": 1010,
+            "SPEEDLEVEL": 1015, "HELLO": 1016, "STRETCH": 1017, "CONTENT": 1020, "DANCE1": 1022,
+            "DANCE2": 1023, "GETBODYHEIGHT": 1024, "GETFOOTRAISEHEIGHT": 1025, "GETSPEEDLEVEL": 1026,
+            "SWITCHJOYSTICK": 1027, "POSE": 1028, "SCRAPE": 1029, "FRONTFLIP": 1030, "FRONTJUMP": 1031,
+            "FRONTPOUNCE": 1032, "STATICWALK": 1061, "TROTRUN": 1062, "ECONOMICGAIT": 1063,
+            "LEFTFLIP": 2041, "BACKFLIP": 2043, "HANDSTAND": 2044, "FREEWALK": 2045, "FREEBOUND": 2046,
+            "FREEJUMP": 2047, "FREEAVOID": 2048, "CLASSICWALK": 2049, "WALKUPRIGHT": 2050,
+            "CROSSSTEP": 2051, "AUTORECOVERY_SET": 2054, "AUTORECOVERY_GET": 2055, "SWITCHAVOIDMODE": 2058,
+        };
+
+        // --- 可视化常量 (保持不变) ---
+        const POINT_SIZE = 0.15;
+        const COLOR_MAP_MIN_DISTANCE = 0.5;
+        const COLOR_MAP_MAX_DISTANCE = 15.0;
+
+        // --- 全局变量 ---
+        let ros = null;
+        let cmdVel = null;
+        let cloudTopicSubscriber = null;
+        let sportApiTopic = null;
+        let currentRobotConfig = null;
+
+        let scene, camera, renderer, controls;
+        let pointCloudObject = null;
+
+        const statusText = document.getElementById('status_text');
+        const cloudDiv = document.getElementById('cloud_display');
+        const videoDisplay = document.getElementById('video_display');
+        const armVideoDisplay = document.getElementById('arm_video_feed'); // 机械臂摄像头显示
+        const robotSelect = document.getElementById('robot-select');
+        const apiControlSelect = document.getElementById('api_control_select');
+
+        const color = new THREE.Color();
+        let currentLinearX = 0.0;
+        let currentLinearY = 0.0;
+        let currentAngularZ = 0.0;
+        let keysPressed = {};
+        
+        // 核心标志 1: 用于控制自动重连的计时器 ID
+        let reconnectTimerId = null; 
+        // 核心标志 2: 标记当前是否处于"正在尝试重连"的状态
+        let isAttemptingReconnect = false; 
+        // 核心标志 3: 标记是否是用户主动操作 (switchRobot)
+        let isManualOperation = false;
+        // 核心新增变量：当前重连尝试次数
+        let currentReconnectAttempts = 0; 
+
+        // ==========================================================
+        // 机械臂控制相关变量和函数
+        // ==========================================================
+        // MQTT配置
+        const ARM_MQTT_CONFIG = {
+            hostname: 'broker.emqx.io',
+            port: 8083,
+            path: '/mqtt',
+            protocol: 'ws',
+            clientId: 'web_arm_control_' + Math.random().toString(16).substr(2, 8),
+            topicCmd: 'jetson/arm_cmd',
+            topicResult: 'jetson/arm_result',
+            topicState: 'jetson/arm_state',
+            topicCameraCmd: 'jetson/camera_cmd'
+        };
+
+        let armMqttClient = null;
+        let isArmConnected = false;
+        let armCurrentPose = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // 当前机械臂姿势
+        let armCurrentGripperPos = 0; // 当前夹爪位置 (0-65mm)
+
+        // 关节限制 [J0, J1, J2, J3, J4, J5, 夹爪]
+        const ARM_JOINT_LIMITS = [135, 90, 90, 135, 90, 135, 65];
+
+        // 机械臂控制函数
+        function armUpdateGripperValue(value) {
+            armCurrentGripperPos = parseFloat(value);
+            document.getElementById('arm_gripper_value').textContent = value + 'mm';
+        }
+
+        function armSetGripperPosition(position) {
+            armCurrentGripperPos = position;
+            document.getElementById('arm_gripper_slider').value = position;
+            document.getElementById('arm_gripper_value').textContent = position + 'mm';
+            
+            armSendCommand('gripper_position', { position: position });
+        }
+
+        function armMoveJointAbsolute() {
+            const jointId = parseInt(document.getElementById('arm_joint_select').value);
+            const angle = parseFloat(document.getElementById('arm_joint_angle').value);
+            
+            // 验证角度范围
+            if (Math.abs(angle) > ARM_JOINT_LIMITS[jointId]) {
+                armAddStatusMessage(`❌ 关节${jointId}角度超出范围 ±${ARM_JOINT_LIMITS[jointId]}°`, 'error');
+                return;
+            }
+            
+            armSendCommand('move_joint', { joint_id: jointId, angle: angle });
+            
+            // 更新当前姿势显示
+            armCurrentPose[jointId] = angle;
+            armUpdateCurrentPoseDisplay();
+            
+            armAddStatusMessage(`✅ 关节 ${jointId} 移动到 ${angle}°`, 'success');
+        }
+
+        function armMoveAllJointsIncremental(increments) {
+            const newPose = armCurrentPose.map((angle, index) => {
+                const increment = increments[index] || 0;
+                const newAngle = angle + increment;
+                // 限制在关节范围内
+                return Math.max(-ARM_JOINT_LIMITS[index], Math.min(ARM_JOINT_LIMITS[index], newAngle));
+            });
+            
+            armSendCommand('move_all_joints', { angles: newPose });
+            
+            // 更新当前姿势
+            armCurrentPose = newPose;
+            armUpdateCurrentPoseDisplay();
+            
+            armAddStatusMessage(`✅ 增量移动: ${increments.map(i => i.toFixed(1)).join(', ')}`, 'success');
+        }
+
+        function armSendCustomPose() {
+            const input = document.getElementById('arm_custom_angles').value.trim();
+            try {
+                const angles = JSON.parse(input);
+                if (!Array.isArray(angles) || angles.length !== 7) {
+                    armAddStatusMessage('❌ 请输入7个关节角度的数组', 'error');
+                    return;
+                }
+                
+                // 验证每个角度
+                for (let i = 0; i < 7; i++) {
+                    if (Math.abs(angles[i]) > ARM_JOINT_LIMITS[i]) {
+                        armAddStatusMessage(`❌ 关节${i}角度${angles[i]}超出范围 ±${ARM_JOINT_LIMITS[i]}°`, 'error');
+                        return;
+                    }
+                }
+                
+                armSendCommand('move_all_joints', { angles: angles });
+                
+                // 更新当前姿势
+                armCurrentPose = angles;
+                armUpdateCurrentPoseDisplay();
+                
+                armAddStatusMessage('✅ 发送自定义姿势: ' + JSON.stringify(angles), 'success');
+            } catch (e) {
+                armAddStatusMessage('❌ 角度格式错误，请使用JSON数组格式', 'error');
+            }
+        }
+
+        function armRequestCurrentState() {
+            armSendCommand('get_state');
+        }
+
+        function armUpdateCurrentPoseDisplay() {
+            const displayPose = armCurrentPose.map(angle => angle.toFixed(1));
+            document.getElementById('currentPose').textContent = 
+                '当前姿势: [' + displayPose.join(', ') + ']';
+        }
+
+        function armSendPresetPose1() {
+            const pose = [0, -45, 60, 0, 30, 0, 0];
+            armSendCommand('move_all_joints', { angles: pose });
+            armCurrentPose = pose;
+            armUpdateCurrentPoseDisplay();
+            armAddStatusMessage('✅ 发送抓取姿势', 'success');
+        }
+
+        function armSendPresetPose2() {
+            const pose = [30, -30, 45, -15, 20, 10, 0];
+            armSendCommand('move_all_joints', { angles: pose });
+            armCurrentPose = pose;
+            armUpdateCurrentPoseDisplay();
+            armAddStatusMessage('✅ 发送放置姿势', 'success');
+        }
+
+        function armSendPresetPose3() {
+            const pose = [45, -60, 30, -10, 15, 5, 0];
+            armSendCommand('move_all_joints', { angles: pose });
+            armCurrentPose = pose;
+            armUpdateCurrentPoseDisplay();
+            armAddStatusMessage('✅ 发送伸展姿势', 'success');
+        }
+
+        // 机械臂MQTT连接
+        function armConnectMQTT() {
+            try {
+                armUpdateConnectionStatus('connecting', '🟡 连接中...');
+                
+                armMqttClient = mqtt.connect(ARM_MQTT_CONFIG);
+                
+                armMqttClient.on('connect', () => {
+                    isArmConnected = true;
+                    armUpdateConnectionStatus('connected', '✅ 已连接到MQTT服务器');
+                    
+                    // 订阅结果和状态主题
+                    armMqttClient.subscribe(ARM_MQTT_CONFIG.topicResult);
+                    armMqttClient.subscribe(ARM_MQTT_CONFIG.topicState);
+                    
+                    armAddStatusMessage('MQTT连接成功，可以控制机械臂');
+                    
+                    // 请求初始状态
+                    setTimeout(() => armRequestCurrentState(), 500);
+                });
+
+                armMqttClient.on('message', (topic, message) => {
+                    const msg = message.toString();
+                    
+                    if (topic === ARM_MQTT_CONFIG.topicResult) {
+                        armAddStatusMessage('机械臂: ' + msg, 'success');
+                    } else if (topic === ARM_MQTT_CONFIG.topicState) {
+                        try {
+                            const state = JSON.parse(msg);
+                            if (state.joint_angles && Array.isArray(state.joint_angles)) {
+                                armCurrentPose = state.joint_angles;
+                                armUpdateCurrentPoseDisplay();
+                                armAddStatusMessage('📊 状态更新: ' + JSON.stringify(state.joint_angles.map(a => a.toFixed(1))));
+                            }
+                        } catch (e) {
+                            console.error('状态解析错误:', e);
+                        }
+                    }
+                });
+
+                armMqttClient.on('error', (error) => {
+                    isArmConnected = false;
+                    armUpdateConnectionStatus('error', '❌ 连接错误');
+                    armAddStatusMessage('MQTT错误: ' + error, 'error');
+                });
+
+                armMqttClient.on('close', () => {
+                    isArmConnected = false;
+                    armUpdateConnectionStatus('disconnected', '🔴 连接已断开');
+                    armAddStatusMessage('MQTT连接已断开，5秒后自动重连...', 'error');
+                    
+                    // 5秒后自动重连
+                    setTimeout(() => {
+                        if (!isArmConnected) {
+                            armAddStatusMessage('正在尝试重新连接...', 'success');
+                            armReconnect();
+                        }
+                    }, 5000);
+                });
+
+            } catch (error) {
+                armUpdateConnectionStatus('error', '❌ 连接失败');
+                armAddStatusMessage('连接异常: ' + error, 'error');
+            }
+        }
+
+        // 发送机械臂命令
+        function armSendCommand(action, params = {}) {
+            if (!isArmConnected || !armMqttClient) {
+                armAddStatusMessage('❌ 未连接到MQTT服务器', 'error');
+                return;
+            }
+
+            const message = {
+                action: action,
+                params: params,
+                timestamp: Date.now()
+            };
+
+            armMqttClient.publish(ARM_MQTT_CONFIG.topicCmd, JSON.stringify(message));
+            armAddStatusMessage(`📤 发送指令: ${action}`, 'success');
+        }
+
+        // 重新连接机械臂
+        function armReconnect() {
+            armAddStatusMessage('🔄 正在重新连接...', 'success');
+            if (armMqttClient) {
+                try {
+                    armMqttClient.end(true);  // 强制关闭
+                } catch (e) {
+                    console.log('关闭旧连接时出错:', e);
+                }
+            }
+            setTimeout(() => {
+                armConnectMQTT();
+            }, 500);
+        }
+
+        // 更新机械臂连接状态
+        function armUpdateConnectionStatus(status, text) {
+            const indicator = document.getElementById('statusIndicator');
+            const textEl = document.getElementById('connectionText');
+            
+            if (indicator && textEl) {
+                indicator.className = 'status-indicator ' + status;
+                textEl.textContent = text;
+            }
+        }
+
+        // 添加机械臂状态消息
+        function armAddStatusMessage(message, type = '') {
+            const container = document.getElementById('arm_status_messages');
+            if (!container) return;
+            
+            const messageEl = document.createElement('div');
+            messageEl.className = `arm-status-message ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            messageEl.innerHTML = `<span class="log-timestamp">${timestamp}</span>${message}`;
+            
+            container.appendChild(messageEl);
+            container.scrollTop = container.scrollHeight;
+            
+            // 限制消息数量
+            const messages = container.getElementsByClassName('arm-status-message');
+            if (messages.length > 30) {
+                messages[0].remove();
+            }
+        }
+
+        // 发送机械臂摄像头命令
+        function armSendCameraCommand(action, params = {}) {
+            if (!isArmConnected || !armMqttClient) {
+                armAddStatusMessage('❌ 未连接到MQTT服务器', 'error');
+                return;
+            }
+
+            const message = {
+                action: action,
+                ...params,
+                timestamp: Date.now()
+            };
+
+            armMqttClient.publish(ARM_MQTT_CONFIG.topicCameraCmd, JSON.stringify(message));
+        }
+
+        // 初始化机械臂控制
+        function armInitPage() {
+            armUpdateTime();
+            armConnectMQTT();
+            armUpdateCurrentPoseDisplay();
+            
+            // 每秒更新时间
+            setInterval(armUpdateTime, 1000);
+        }
+
+        // 更新机械臂时间显示
+        function armUpdateTime() {
+            const timeEl = document.getElementById('arm_current_time');
+            if (timeEl) {
+                timeEl.textContent = new Date().toLocaleTimeString();
+            }
+        }
+
+        // ==========================================================
+        // G1机械臂控制相关变量和函数 - 修复后的MQTT连接
+        // ==========================================================
+        // MQTT配置 - 修改为与第二个文件一致
+        const G1_MQTT_CONFIG = {
+            broker: 'broker.emqx.io',
+            port: 8083,
+            topicCmd: 'g1/arm_control',
+            topicState: 'g1/arm_state',
+            clientId: 'g1_dual_camera_controller_' + Math.random().toString(16).substr(2, 8)  // 使用更长的随机ID
+        };
+
+        // 关节配置 - 14个手臂关节
+        const G1_JOINT_CONFIG = {
+            leftArm: [
+                { id: 'left_shoulder_pitch', name: '左肩俯仰', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'left_shoulder_roll', name: '左肩旋转', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'left_shoulder_yaw', name: '左肩偏航', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'left_elbow', name: '左肘关节', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'left_wrist_roll', name: '左腕旋转', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'left_wrist_pitch', name: '左腕俯仰', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'left_wrist_yaw', name: '左腕偏航', min: -3.14, max: 3.14, step: 0.01, value: 0.0 }
+            ],
+            rightArm: [
+                { id: 'right_shoulder_pitch', name: '右肩俯仰', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'right_shoulder_roll', name: '右肩旋转', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'right_shoulder_yaw', name: '右肩偏航', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'right_elbow', name: '右肘关节', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'right_wrist_roll', name: '右腕旋转', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'right_wrist_pitch', name: '右腕俯仰', min: -3.14, max: 3.14, step: 0.01, value: 0.0 },
+                { id: 'right_wrist_yaw', name: '右腕偏航', min: -3.14, max: 3.14, step: 0.01, value: 0.0 }
+            ]
+        };
+
+        // 预设动作配置
+        const G1_PRESET_POSITIONS = {
+            home: [0.2, 0.1, 0.0, -0.3, 0.0, 0.0, 0.0, 0.2, -0.1, 0.0, -0.3, 0.0, 0.0, 0.0],
+            stretch: [0.0, 1.57, 0.0, 1.57, 0.0, 0.0, 0.0, 0.0, -1.57, 0.0, 1.57, 0.0, 0.0, 0.0],
+            wave_left: [0.8, 1.57, 0.0, 1.57, 0.5, 0.0, 0.0, 0.0, -1.57, 0.0, 1.57, 0.0, 0.0, 0.0],
+            wave_right: [0.0, 1.57, 0.0, 1.57, 0.0, 0.0, 0.0, 0.8, -1.57, 0.0, 1.57, -0.5, 0.0, 0.0],
+            grab: [0.0, 1.57, 0.0, 1.57, 0.0, 0.5, 0.3, 0.0, -1.57, 0.0, 1.57, 0.0, 0.5, -0.3],
+            zero: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            salute: [0.0, 1.57, 0.0, 1.57, 0.0, 0.0, 0.0, 0.8, -1.57, 0.0, 0.5, 0.0, 0.0, 0.0],
+            tpose: [0.0, 1.57, 0.0, 1.57, 0.0, 0.0, 0.0, 0.0, -1.57, 0.0, 1.57, 0.0, 0.0, 0.0],
+            relax: [0.5, 0.3, 0.0, -0.8, 0.0, 0.0, 0.0, 0.5, -0.3, 0.0, -0.8, 0.0, 0.0, 0.0]
+        };
+
+        let g1MqttClient = null;
+        let g1IsConnected = false;
+        const g1CurrentPositions = {};
+        let g1SendDebounceTimer = null;
+        const G1_SEND_DEBOUNCE_DELAY = 50; // 50ms防抖延迟
+        let g1FirstConnection = true; // 添加首次连接标志
+
+        // 初始化G1机械臂页面
+        function g1InitializePage() {
+            g1GenerateJointControls('g1_leftArmControls', G1_JOINT_CONFIG.leftArm);
+            g1GenerateJointControls('g1_rightArmControls', G1_JOINT_CONFIG.rightArm);
+            g1PopulateJointSelect();
+            g1ConnectMQTT();
+        }
+
+        // 生成G1关节控制界面
+        function g1GenerateJointControls(containerId, joints) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            container.innerHTML = '';
+
+            joints.forEach(joint => {
+                g1CurrentPositions[joint.id] = joint.value;
+                
+                const jointControl = document.createElement('div');
+                jointControl.className = 'g1-joint-control';
+                jointControl.innerHTML = `
+                    <div class="g1-joint-header">
+                        <div class="g1-joint-name">${joint.name}</div>
+                        <div class="g1-joint-value" id="g1_${joint.id}_value">
+                            ${joint.value.toFixed(3)}
+                            <span class="g1-sending-indicator" id="g1_${joint.id}_sending">🔄</span>
+                        </div>
+                    </div>
+                    <div class="g1-slider-container">
+                        <input type="range" 
+                               id="g1_${joint.id}_slider" 
+                               min="${joint.min}" 
+                               max="${joint.max}" 
+                               step="${joint.step}" 
+                               value="${joint.value}"
+                               oninput="g1HandleJointInput('${joint.id}', this.value)"
+                               onchange="g1HandleJointChange('${joint.id}', this.value)">
+                        <input type="number" 
+                               id="g1_${joint.id}_input" 
+                               min="${joint.min}" 
+                               max="${joint.max}" 
+                               step="${joint.step}" 
+                               value="${joint.value}"
+                               onchange="g1HandleJointChange('${joint.id}', this.value)">
+                    </div>
+                `;
+                container.appendChild(jointControl);
+            });
+        }
+
+        // 填充G1关节选择下拉框
+        function g1PopulateJointSelect() {
+            const select = document.getElementById('g1_jointSelect');
+            if (!select) return;
+            
+            select.innerHTML = '';
+            
+            [...G1_JOINT_CONFIG.leftArm, ...G1_JOINT_CONFIG.rightArm].forEach(joint => {
+                const option = document.createElement('option');
+                option.value = joint.id;
+                option.textContent = joint.name;
+                select.appendChild(option);
+            });
+        }
+
+        // 处理G1关节输入（实时更新显示）
+        function g1HandleJointInput(jointId, value) {
+            const numValue = parseFloat(value);
+            g1CurrentPositions[jointId] = numValue;
+            
+            // 更新显示
+            const valueSpan = document.getElementById(`g1_${jointId}_value`);
+            if (valueSpan) {
+                valueSpan.firstChild.textContent = numValue.toFixed(3);
+            }
+            
+            const numberInput = document.getElementById(`g1_${jointId}_input`);
+            if (numberInput && numberInput !== document.activeElement) {
+                numberInput.value = numValue;
+            }
+        }
+
+        // 处理G1关节变化（发送命令）
+        function g1HandleJointChange(jointId, value) {
+            const numValue = parseFloat(value);
+            g1CurrentPositions[jointId] = numValue;
+            
+            // 更新所有显示元素
+            const slider = document.getElementById(`g1_${jointId}_slider`);
+            const numberInput = document.getElementById(`g1_${jointId}_input`);
+            const valueSpan = document.getElementById(`g1_${jointId}_value`);
+            
+            if (slider) slider.value = numValue;
+            if (numberInput) numberInput.value = numValue;
+            if (valueSpan) valueSpan.firstChild.textContent = numValue.toFixed(3);
+            
+            // 发送单个关节命令
+            g1SendJointCommand(jointId, numValue);
+        }
+
+        // 发送G1单个关节命令
+        function g1SendJointCommand(jointId, value) {
+            if (!g1MqttClient || !g1IsConnected) {
+                g1AddLog('MQTT未连接，无法发送命令', 'error');
+                return;
+            }
+            
+            const command = {
+                joint_control: {
+                    joint_name: jointId,
+                    position: value
+                }
+            };
+            
+            g1PublishCommand(command);
+            g1AddLog(`设置 ${jointId} 位置: ${value.toFixed(3)}`);
+        }
+
+        // 发送G1所有关节位置
+        function g1SendAllJoints() {
+            const positions = [];
+            [...G1_JOINT_CONFIG.leftArm, ...G1_JOINT_CONFIG.rightArm].forEach(joint => {
+                positions.push(g1CurrentPositions[joint.id] || 0);
+            });
+            
+            const command = {
+                enable: true,
+                positions: positions
+            };
+            
+            g1PublishCommand(command);
+            g1AddLog('发送所有关节位置');
+        }
+
+        // 连接G1 MQTT - 修复后的版本
+        function g1ConnectMQTT() {
+            try {
+                const wsUrl = `ws://${G1_MQTT_CONFIG.broker}:${G1_MQTT_CONFIG.port}/mqtt`;
+                
+                // 如果已有连接，先清理
+                if (g1MqttClient) {
+                    try {
+                        g1MqttClient.end(true);
+                    } catch (e) {
+                        console.log('关闭旧G1 MQTT连接时出错:', e);
+                    }
+                    g1MqttClient = null;
+                }
+                
+                g1UpdateConnectionStatus(false, '🟡 连接中...');
+                g1AddLog('正在连接到MQTT服务器...');
+                
+                // 创建新连接，使用与第二个文件相同的配置
+                g1MqttClient = mqtt.connect(wsUrl, {
+                    clientId: G1_MQTT_CONFIG.clientId,
+                    clean: true,
+                    connectTimeout: 4000,
+                    reconnectPeriod: 3000,  // 3秒后自动重连
+                    keepalive: 60
+                });
+                
+                g1MqttClient.on('connect', function() {
+                    g1IsConnected = true;
+                    g1UpdateConnectionStatus(true, '✅ 已连接到MQTT服务器');
+                    g1AddLog('连接到MQTT服务器成功');
+                    
+                    // 订阅主题
+                    g1MqttClient.subscribe(G1_MQTT_CONFIG.topicState, function(err) {
+                        if (err) {
+                            g1AddLog('订阅状态主题失败: ' + err, 'error');
+                        } else {
+                            g1AddLog(`已订阅状态主题: ${G1_MQTT_CONFIG.topicState}`);
+                        }
+                    });
+                    
+                    // 首次连接时自动启用机械臂
+                    if (g1FirstConnection) {
+                        g1FirstConnection = false;
+                        setTimeout(() => {
+                            g1EnableArm();
+                            g1AddLog('首次连接，自动启用机械臂');
+                        }, 1000);
+                    }
+                });
+                
+                g1MqttClient.on('error', function(error) {
+                    g1IsConnected = false;
+                    g1UpdateConnectionStatus(false, '❌ MQTT连接错误');
+                    g1AddLog('MQTT连接错误: ' + error.message, 'error');
+                });
+                
+                g1MqttClient.on('close', function() {
+                    g1IsConnected = false;
+                    g1UpdateConnectionStatus(false, '❌ MQTT连接已断开');
+                    g1AddLog('MQTT连接断开，将自动重连...', 'warning');
+                });
+                
+                g1MqttClient.on('reconnect', function() {
+                    g1AddLog('正在尝试重新连接MQTT...', 'info');
+                });
+                
+                g1MqttClient.on('message', function(topic, message) {
+                    if (topic === G1_MQTT_CONFIG.topicState) {
+                        try {
+                            const data = JSON.parse(message.toString());
+                            g1HandleStateMessage(data);
+                        } catch (e) {
+                            g1AddLog(`状态消息解析错误: ${e}`, 'error');
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                g1UpdateConnectionStatus(false, '❌ 连接失败');
+                g1AddLog('连接失败: ' + error.message, 'error');
+            }
+        }
+
+        // 处理G1状态消息
+        function g1HandleStateMessage(data) {
+            if (data.arm_enabled !== undefined) {
+                // 更新机械臂启用状态
+                const statusText = data.arm_enabled ? '启用' : '禁用';
+                g1AddLog(`机械臂状态: ${statusText}`);
+            }
+            
+            if (data.positions && Array.isArray(data.positions)) {
+                // 更新关节位置显示
+                g1UpdateJointSliders(data.positions);
+            }
+        }
+
+        // 更新G1关节滑块位置
+        function g1UpdateJointSliders(positions) {
+            const allJoints = [...G1_JOINT_CONFIG.leftArm, ...G1_JOINT_CONFIG.rightArm];
+            
+            allJoints.forEach((joint, index) => {
+                if (index < positions.length) {
+                    const newValue = positions[index];
+                    g1CurrentPositions[joint.id] = newValue;
+                    
+                    const slider = document.getElementById(`g1_${joint.id}_slider`);
+                    const numberInput = document.getElementById(`g1_${joint.id}_input`);
+                    const valueSpan = document.getElementById(`g1_${joint.id}_value`);
+                    
+                    if (slider) slider.value = newValue;
+                    if (numberInput) numberInput.value = newValue;
+                    if (valueSpan) valueSpan.firstChild.textContent = newValue.toFixed(3);
+                }
+            });
+        }
+
+        // 更新G1连接状态显示
+        function g1UpdateConnectionStatus(connected, message) {
+            const statusElement = document.getElementById('g1_connectionStatus');
+            const statusText = document.getElementById('g1_statusText');
+            
+            g1IsConnected = connected;
+            if (statusElement) {
+                statusElement.className = connected ? 
+                    'g1-connection-status g1-connected' : 
+                    'g1-connection-status g1-disconnected';
+            }
+            if (statusText) {
+                statusText.textContent = message;
+            }
+        }
+
+        // 发布G1命令到MQTT
+        function g1PublishCommand(command) {
+            if (!g1MqttClient || !g1IsConnected) {
+                g1AddLog('MQTT未连接，无法发送命令', 'error');
+                return false;
+            }
+            
+            try {
+                const payload = JSON.stringify(command);
+                g1MqttClient.publish(G1_MQTT_CONFIG.topicCmd, payload);
+                return true;
+            } catch (error) {
+                g1AddLog('发送命令失败: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // 启用G1机械臂
+        function g1EnableArm() {
+            const command = { enable: true };
+            if (g1PublishCommand(command)) {
+                g1AddLog('启用机械臂控制', 'success');
+            }
+        }
+
+        // 禁用G1机械臂
+        function g1DisableArm() {
+            const command = { enable: false };
+            if (g1PublishCommand(command)) {
+                g1AddLog('禁用机械臂控制', 'warning');
+            }
+        }
+
+        // 停止G1机械臂
+        function g1StopArm() {
+            g1DisableArm();
+            // 重置所有位置为零
+            const zeroPositions = new Array(14).fill(0);
+            setTimeout(() => {
+                const command = { enable: true, positions: zeroPositions };
+                g1PublishCommand(command);
+                g1AddLog('紧急停止:已禁用机械臂并重置位置', 'warning');
+                g1UpdateInterfaceWithPreset('zero');
+            }, 100);
+        }
+
+        // 发送G1预设动作
+        function g1SendPreset(presetName) {
+            if (G1_PRESET_POSITIONS[presetName]) {
+                const command = {
+                    enable: true,
+                    positions: G1_PRESET_POSITIONS[presetName]
+                };
+                
+                if (g1PublishCommand(command)) {
+                    g1AddLog(`发送预设动作: ${presetName}`, 'success');
+                    g1UpdateInterfaceWithPreset(presetName);
+                }
+            } else {
+                g1AddLog(`未知的预设动作: ${presetName}`, 'error');
+            }
+        }
+
+        // 更新G1界面显示预设值
+        function g1UpdateInterfaceWithPreset(presetName) {
+            const positions = G1_PRESET_POSITIONS[presetName];
+            if (!positions) return;
+            
+            const allJoints = [...G1_JOINT_CONFIG.leftArm, ...G1_JOINT_CONFIG.rightArm];
+            
+            allJoints.forEach((joint, index) => {
+                if (index < positions.length) {
+                    g1CurrentPositions[joint.id] = positions[index];
+                    
+                    const slider = document.getElementById(`g1_${joint.id}_slider`);
+                    const numberInput = document.getElementById(`g1_${joint.id}_input`);
+                    const valueSpan = document.getElementById(`g1_${joint.id}_value`);
+                    
+                    if (slider) slider.value = positions[index];
+                    if (numberInput) numberInput.value = positions[index];
+                    if (valueSpan) valueSpan.firstChild.textContent = positions[index].toFixed(3);
+                }
+            });
+        }
+
+        // 发送G1单个关节命令(通过输入框)
+        function g1SendSingleJoint() {
+            const jointSelect = document.getElementById('g1_jointSelect');
+            const positionInput = document.getElementById('g1_positionInput');
+            
+            if (!jointSelect || !positionInput) return;
+            
+            const jointName = jointSelect.value;
+            const position = parseFloat(positionInput.value);
+            
+            if (jointName && !isNaN(position)) {
+                g1SendJointCommand(jointName, position);
+                
+                // 更新界面
+                g1CurrentPositions[jointName] = position;
+                const slider = document.getElementById(`g1_${jointName}_slider`);
+                const numberInput = document.getElementById(`g1_${jointName}_input`);
+                const valueSpan = document.getElementById(`g1_${jointName}_value`);
+                
+                if (slider) slider.value = position;
+                if (numberInput) numberInput.value = position;
+                if (valueSpan) valueSpan.firstChild.textContent = position.toFixed(3);
+            }
+        }
+
+        // 添加G1日志
+        function g1AddLog(message, type = 'info') {
+            const logContent = document.getElementById('g1_logContent');
+            if (!logContent) return;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'g1-log-entry';
+            
+            let prefix = '[系统]';
+            if (type === 'success') prefix = '[成功]';
+            if (type === 'error') prefix = '[错误]';
+            if (type === 'warning') prefix = '[警告]';
+            
+            logEntry.innerHTML = `<span class="g1-timestamp">[${timestamp}]</span> ${prefix} ${message}`;
+            logContent.appendChild(logEntry);
+            logContent.scrollTop = logContent.scrollHeight;
+            
+            // 限制日志条目数量
+            const entries = logContent.getElementsByClassName('g1-log-entry');
+            if (entries.length > 100) {
+                entries[0].remove();
+            }
+        }
+
+        // 清空G1日志
+        function g1ClearLog() {
+            const logContent = document.getElementById('g1_logContent');
+            if (logContent) {
+                logContent.innerHTML = '';
+                g1AddLog('日志已清空');
+            }
+        }
+
+        // ==========================================================
+        // 机器人类型切换函数
+        // ==========================================================
+        function updateRobotSpecificControls() {
+            // 隐藏所有特定控制界面
+            document.querySelectorAll('.robot-specific-control').forEach(control => {
+                control.classList.remove('active');
+            });
+            
+            // 更新摄像头显示区域
+            const go2ArmCameraItem = document.getElementById('go2-arm-camera-item');
+            const g1CameraContainer = document.getElementById('g1-camera-container');
+            
+            if (currentRobotConfig) {
+                if (currentRobotConfig.type === 'go2') {
+                    // 显示GO2控制界面
+                    document.getElementById('go2-arm-control').classList.add('active');
+                    document.getElementById('speed-control-hint').textContent = '当前控制模式：四足机器人移动控制';
+                    document.getElementById('arm-control-hint').textContent = '当前控制模式：GO2机械臂控制';
+                    
+                    // 显示GO2机械臂摄像头，隐藏G1摄像头
+                    if (go2ArmCameraItem) go2ArmCameraItem.style.display = 'block';
+                    if (g1CameraContainer) g1CameraContainer.style.display = 'none';
+                    
+                } else if (currentRobotConfig.type === 'g1') {
+                    // 显示G1控制界面
+                    document.getElementById('g1-arm-control').classList.add('active');
+                    document.getElementById('speed-control-hint').textContent = '当前控制模式：G1机器人移动控制';
+                    document.getElementById('arm-control-hint').textContent = '当前控制模式：G1双机械臂控制';
+                    
+                    // 隐藏GO2机械臂摄像头，显示G1摄像头
+                    if (go2ArmCameraItem) go2ArmCameraItem.style.display = 'none';
+                    if (g1CameraContainer) g1CameraContainer.style.display = 'flex';
+                    
+                    // 更新G1摄像头视频流
+                    updateG1CameraStreams();
+                }
+            } else {
+                document.getElementById('speed-control-hint').textContent = '请选择机器人类型以显示相应的控制界面';
+                document.getElementById('arm-control-hint').textContent = '请选择机器人类型以显示相应的机械臂控制界面';
+                
+                // 默认显示GO2机械臂摄像头
+                if (go2ArmCameraItem) go2ArmCameraItem.style.display = 'block';
+                if (g1CameraContainer) g1CameraContainer.style.display = 'none';
+            }
+        }
+
+        // 更新G1摄像头视频流
+        function updateG1CameraStreams() {
+            if (!currentRobotConfig || currentRobotConfig.type !== 'g1') return;
+            
+            const leftCamera = document.getElementById('g1_left_camera');
+            const rightCamera = document.getElementById('g1_right_camera');
+            
+            if (leftCamera && currentRobotConfig.left_camera_port) {
+                leftCamera.src = `http://${currentRobotConfig.ip}:${currentRobotConfig.left_camera_port}/video_stream`;
+            }
+            
+            if (rightCamera && currentRobotConfig.right_camera_port) {
+                rightCamera.src = `http://${currentRobotConfig.ip}:${currentRobotConfig.right_camera_port}/video_stream`;
+            }
+        }
+
+        // ==========================================================
+        // 原有ROS控制函数
+        // ==========================================================
+        function setupTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.getAttribute('data-tab');
+                    
+                    // 移除所有活动状态
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // 添加当前活动状态
+                    button.classList.add('active');
+                    document.getElementById(tabId).classList.add('active');
+                    
+                    // 如果是机械臂控制选项卡，根据机器人类型初始化相应的控制
+                    if (tabId === 'arm-control') {
+                        if (currentRobotConfig && currentRobotConfig.type === 'go2') {
+                            armInitPage();
+                        } else if (currentRobotConfig && currentRobotConfig.type === 'g1') {
+                            g1InitializePage();
+                        }
+                    }
+                });
+            });
+        }
+
+        function mapValueToRVizColor(normalizedValue) {
+            const hue = (1.0 - normalizedValue) * 0.66;
+            const saturation = 1.0;
+            const lightness = 0.5;
+
+            color.setHSL(hue, saturation, lightness);
+            return { r: color.r, g: color.g, b: color.b };
+        }
+
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x2c3e50);
+
+            camera = new THREE.PerspectiveCamera(75, cloudDiv.clientWidth / cloudDiv.clientHeight, 0.1, 1000);
+            camera.position.set(3, 3, 3);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(cloudDiv.clientWidth, cloudDiv.clientHeight);
+            cloudDiv.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.screenSpacePanning = true;
+            controls.update();
+
+            scene.add(new THREE.GridHelper(10, 10, 0x7f8c8d, 0x7f8c8d));
+            scene.add(new THREE.AxesHelper(1.0));
+
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        function onWindowResize() {
+            if (!camera || !renderer) return;
+            const width = cloudDiv.clientWidth;
+            const height = cloudDiv.clientHeight;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+        
+        /**
+         * @description 处理并执行重连逻辑，检查重连次数。
+         */
+        function attemptReconnect() {
+            if (currentReconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                currentReconnectAttempts++;
+                const delay = 5000; // 5秒重连间隔
+                
+                // 清除之前的定时器，防止冲突
+                if (reconnectTimerId) clearTimeout(reconnectTimerId); 
+
+                statusText.innerText = `尝试重连中 (${currentReconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`;
+                statusText.style.color = 'red';
+                
+                reconnectTimerId = setTimeout(() => {
+                    isAttemptingReconnect = true; // 确保下一个 startConnection 知道是重试
+                    startConnection();
+                }, delay);
+
+            } else {
+                statusText.innerText = `连接失败，达到最大重试次数 (${MAX_RECONNECT_ATTEMPTS})。请手动重试或检查机器人。`;
+                statusText.style.color = 'red';
+                // 停止循环
+                isAttemptingReconnect = false; 
+                currentReconnectAttempts = 0; // 失败后重置为0，等待用户下次操作
+            }
+        }
+
+        /**
+         * @description 关闭当前的 ROS 连接和订阅。
+         */
+        function disconnect() {
+            if (reconnectTimerId) {
+                clearTimeout(reconnectTimerId);
+                reconnectTimerId = null;
+            }
+
+            if (cloudTopicSubscriber) {
+                cloudTopicSubscriber.unsubscribe();
+                cloudTopicSubscriber = null;
+            }
+
+            cmdVel = null;
+            sportApiTopic = null;
+
+            if (ros) { 
+                stopRobot();
+                ros.removeAllListeners();
+
+                if (ros.isConnected) {
+                    ros.close(); 
+                }
+                
+                ros = null; 
+                console.log('Closed and nullified old ROS Bridge connection object.');
+            }
+            
+            if (pointCloudObject) {
+                scene.remove(pointCloudObject);
+                pointCloudObject.geometry.dispose();
+                pointCloudObject = null;
+            }
+            
+            // 核心修改：每次手动断开时，重置重连标志和次数
+            isAttemptingReconnect = false;
+            isManualOperation = false;
+            currentReconnectAttempts = 0; 
+        }
+
+        /**
+         * @description 根据当前的 currentRobotConfig 建立新的 ROS 连接。
+         */
+        function startConnection() {
+            
+            // 如果是手动操作触发，则先进行全面清理
+            if (isManualOperation) {
+                disconnect(); 
+            } else if (ros) {
+                 // 如果是自动重连，只需要清理旧的 ros 实例引用，避免泄露
+                 ros.removeAllListeners();
+                 ros = null; 
+            }
+            
+            if (!currentRobotConfig) {
+                statusText.innerText = '未选择机器人';
+                statusText.style.color = 'gray';
+                return;
+            }
+
+            const rosbridgeUrl = `ws://${currentRobotConfig.ip}:${ROSBRIDGE_PORT}`;
+            statusText.innerText = `尝试连接 ${currentRobotConfig.ip}...`;
+            statusText.style.color = 'orange';
+
+            ros = new ROSLIB.Ros({ url: rosbridgeUrl });
+
+            ros.on('connection', () => {
+                console.log(`Connected to ROS Bridge at ${currentRobotConfig.ip}`);
+                statusText.innerText = '已连接';
+                statusText.style.color = 'green';
+                
+                // 核心修改：连接成功，重置所有状态
+                isAttemptingReconnect = false;
+                isManualOperation = false;
+                currentReconnectAttempts = 0;
+                
+                // 初始化发布器和订阅
+                cmdVel = new ROSLIB.Topic({ ros: ros, name: CMD_VEL_TOPIC, messageType: 'geometry_msgs/Twist' });
+                sportApiTopic = new ROSLIB.Topic({ ros: ros, name: SPORT_API_TOPIC, messageType: SPORT_API_MSG_TYPE });
+                subscribePointCloud();
+            });
+
+            ros.on('error', (error) => {
+                console.error('Error connecting to ROS: ', error);
+                ros = null; // 清除引用
+                
+                // 如果是用户操作（首次尝试）失败，则停止重试
+                if (!isAttemptingReconnect) {
+                    statusText.innerText = `连接 ${currentRobotConfig.ip} 失败 - 机器人未开机或网络错误。`;
+                    statusText.style.color = 'red';
+                    return;
+                }
+                
+                // 如果是在重连循环中发生错误，继续尝试
+                attemptReconnect();
+            });
+
+            ros.on('close', () => {
+                if (isManualOperation) { 
+                     console.log(`Disconnected manually from ROS at ${currentRobotConfig.ip}.`);
+                     statusText.innerText = '已断开';
+                     statusText.style.color = 'red';
+                     return;
+                }
+
+                // 核心修改：如果是非手动且 ros 引用未清理 (即意外断开)
+                if (ros !== null) { 
+                    console.log(`Disconnected unexpectedly from ROS at ${currentRobotConfig.ip}. Initiating reconnect sequence.`);
+                    ros = null; // 立即清除引用，防止泄露
+                    
+                    // 启动重连逻辑
+                    attemptReconnect();
+                }
+            });
+
+            // 更新视频流 URL
+            videoDisplay.src = `http://${currentRobotConfig.ip}:${currentRobotConfig.video_port}/video_stream`;
+            
+            // 更新机械臂摄像头视频流 - 使用端口5001
+            if (currentRobotConfig.arm_camera_port) {
+                armVideoDisplay.src = `http://${currentRobotConfig.ip}:${currentRobotConfig.arm_camera_port}/video_stream`;
+            }
+            
+            // 更新G1摄像头视频流
+            updateG1CameraStreams();
+        }
+
+        /**
+         * @description 根据选择切换机器人配置并重新连接。
+         */
+        function switchRobot(robotKey) {
+            currentRobotConfig = ROBOTS_CONFIG[robotKey];
+            // 核心修改：标记为手动操作，并重置所有状态
+            isAttemptingReconnect = false; 
+            isManualOperation = true; 
+            currentReconnectAttempts = 0;
+            
+            // 更新特定控制界面
+            updateRobotSpecificControls();
+            
+            startConnection();
+        }
+
+        function parsePointCloud2(message) {
+            if (!message.data || message.data.length === 0 || message.height * message.width === 0) {
+                return null;
+            }
+
+            let xOffset = -1, yOffset = -1, zOffset = -1;
+            const pointStep = message.point_step;
+
+            message.fields.forEach(field => {
+                if (field.name === 'x') xOffset = field.offset;
+                if (field.name === 'y') yOffset = field.offset;
+                if (field.name === 'z') zOffset = field.offset;
+            });
+
+            if (xOffset === -1 || yOffset === -1 || zOffset === -1) {
+                console.error("PointCloud2 消息中未找到 x, y, z 字段!");
+                return null;
+            }
+
+            const binaryString = atob(message.data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            const dataLength = bytes.length;
+            const numPointsExpected = Math.floor(dataLength / pointStep);
+            const positions = new Float32Array(numPointsExpected * 3);
+            const colors = new Float32Array(numPointsExpected * 3);
+
+            const dataView = new DataView(bytes.buffer);
+            let dataIndex = 0;
+            let colorIndex = 0;
+            const isLittleEndian = true;
+            let actualPointsCount = 0;
+
+            for (let byteOffset = 0;
+                 byteOffset + pointStep <= dataLength;
+                 byteOffset += pointStep)
+            {
+                try {
+                    const rawX = dataView.getFloat32(byteOffset + xOffset, isLittleEndian);
+                    const rawY = dataView.getFloat32(byteOffset + yOffset, isLittleEndian);
+                    const rawZ = dataView.getFloat32(byteOffset + zOffset, isLittleEndian);
+
+                    const distance = Math.sqrt(rawX * rawX + rawY * rawY + rawZ * rawZ);
+
+                    const threeX = rawX;
+                    const threeY = rawZ;
+                    const threeZ = -rawY;
+
+                    positions[dataIndex++] = threeX;
+                    positions[dataIndex++] = threeY;
+                    positions[dataIndex++] = threeZ;
+
+                    const normalizedValue = THREE.MathUtils.clamp(
+                        (distance - COLOR_MAP_MIN_DISTANCE) / (COLOR_MAP_MAX_DISTANCE - COLOR_MAP_MIN_DISTANCE),
+                        0.0,
+                        1.0
+                    );
+
+                    const {r, g, b} = mapValueToRVizColor(normalizedValue);
+
+                    colors[colorIndex++] = r;
+                    colors[colorIndex++] = g;
+                    colors[colorIndex++] = b;
+
+                    actualPointsCount++;
+                } catch (e) {
+                    break;
+                }
+            }
+
+            if (actualPointsCount === 0) {
+                 return null;
+            }
+
+            const actualPositions = positions.slice(0, dataIndex);
+            const actualColors = colors.slice(0, colorIndex);
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(actualPositions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(actualColors, 3));
+            geometry.computeBoundingSphere();
+
+            return geometry;
+        }
+
+        function subscribePointCloud() {
+            if (cloudTopicSubscriber) {
+                cloudTopicSubscriber.unsubscribe();
+            }
+
+            cloudTopicSubscriber = new ROSLIB.Topic({
+                ros: ros,
+                name: POINT_CLOUD_TOPIC,
+                messageType: 'sensor_msgs/PointCloud2',
+                compression: 'none'
+            });
+
+            cloudTopicSubscriber.subscribe((message) => {
+                const geometry = parsePointCloud2(message);
+
+                if (geometry) {
+                    if (pointCloudObject) {
+                        scene.remove(pointCloudObject);
+                        pointCloudObject.geometry.dispose();
+                    }
+
+                    const material = new THREE.PointsMaterial({
+                        size: POINT_SIZE,
+                        vertexColors: true,
+                        sizeAttenuation: false
+                    });
+
+                    pointCloudObject = new THREE.Points(geometry, material);
+                    scene.add(pointCloudObject);
+                }
+            });
+            console.log(`📡 Subscribing to ${POINT_CLOUD_TOPIC} on ${currentRobotConfig.ip}...`);
+        }
+
+        function getSpeeds() {
+            const linear_x = parseFloat(document.getElementById('linear_x_speed').value) || 0;
+            const linear_y = parseFloat(document.getElementById('linear_y_speed').value) || 0;
+            const angular_z = parseFloat(document.getElementById('angular_z_speed').value) || 0;
+            return { linear_x, linear_y, angular_z };
+        }
+
+        function stopRobot() {
+            currentLinearX = 0.0;
+            currentLinearY = 0.0;
+            currentAngularZ = 0.0;
+            publishCurrentTwist();
+        }
+
+        function publishCurrentTwist() {
+            if (!cmdVel || !ros || ros.isClosed || !ros.isConnected) { 
+                console.warn('ROS Bridge 未连接或 cmd_vel 话题未初始化!');
+                return;
+            }
+
+            const twist = new ROSLIB.Message({
+                linear: { x: currentLinearX, y: currentLinearY, z: 0.0 },
+                angular: { x: 0.0, y: 0.0, z: currentAngularZ }
+            });
+            cmdVel.publish(twist);
+        }
+
+        function sendSportApiRequest() {
+            if (!sportApiTopic || !ros || !ros.isConnected) {
+                console.warn('ROS Bridge 未连接或 sportApiTopic 话题未初始化!');
+                return;
+            }
+
+            const api_id_str = apiControlSelect.value;
+            const api_id = parseInt(api_id_str);
+
+            if (isNaN(api_id)) {
+                console.error('无效的 API ID:', api_id_str);
+                return;
+            }
+
+            console.log(`Sending Sport API Request: ${apiControlSelect.options[apiControlSelect.selectedIndex].text} (ID: ${api_id})`);
+
+            const apiRequest = new ROSLIB.Message({
+                header: {
+                    identity: {
+                        api_id: api_id
+                    },
+                },
+            });
+
+            sportApiTopic.publish(apiRequest);
+        }
+
+        // 保存摄像头图像
+        function saveCameraImage(imgId, filename) {
+            const img = document.getElementById(imgId);
+            if (!img) return;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.videoWidth || img.width;
+            canvas.height = img.naturalHeight || img.videoHeight || img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            const link = document.createElement('a');
+            link.download = filename + '_' + Date.now() + '.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // 启动程序和事件监听
+        document.addEventListener('DOMContentLoaded', () => {
+            initThreeJS();
+            setupTabs(); // 初始化选项卡
+            window.addEventListener('resize', onWindowResize, false);
+
+            Object.keys(ROBOTS_CONFIG).forEach(key => {
+                const config = ROBOTS_CONFIG[key];
+                const option = document.createElement('option');
+                option.value = key; 
+                option.textContent = key + ` (${config.ip})`;
+                robotSelect.appendChild(option);
+            });
+
+            Object.keys(ROBOT_SPORT_API_IDS).forEach(key => {
+                const id = ROBOT_SPORT_API_IDS[key];
+                const option = document.createElement('option');
+                option.value = id; 
+                option.textContent = `${key} (${id})`;
+                apiControlSelect.appendChild(option);
+            });
+
+            robotSelect.addEventListener('change', (e) => {
+                switchRobot(e.target.value);
+            });
+
+            document.getElementById('send_api_button').addEventListener('click', sendSportApiRequest);
+
+            if (Object.keys(ROBOTS_CONFIG).length > 0) {
+                robotSelect.value = Object.keys(ROBOTS_CONFIG)[0];
+                switchRobot(robotSelect.value);
+            }
+
+            document.querySelectorAll('.control-button').forEach(button => {
+                const linX_dir = button.dataset.linX ? parseInt(button.dataset.linX) : 0;
+                const linY_dir = button.dataset.linY ? parseInt(button.dataset.linY) : 0;
+                const angZ_dir = button.dataset.angZ ? parseInt(button.dataset.angZ) : 0;
+
+                const handleMovement = (isPressed) => {
+                    if (!cmdVel || !ros || !ros.isConnected) return; 
+
+                    const speeds = getSpeeds();
+
+                    if (button.dataset.key === 's') {
+                        stopRobot();
+                    } else if (isPressed) {
+                        currentLinearX = linX_dir * speeds.linear_x;
+                        currentLinearY = linY_dir * speeds.linear_y;
+                        currentAngularZ = angZ_dir * speeds.angular_z;
+                        publishCurrentTwist();
+                    } else {
+                        if (linX_dir !== 0) currentLinearX = 0.0;
+                        if (linY_dir !== 0) currentLinearY = 0.0;
+                        if (angZ_dir !== 0) currentAngularZ = 0.0;
+                        publishCurrentTwist();
+                    }
+                };
+
+                button.onmousedown = button.ontouchstart = (e) => {
+                    handleMovement(true);
+                    e.preventDefault();
+                };
+
+                button.onmouseup = button.ontouchend = (e) => {
+                    handleMovement(false);
+                    e.preventDefault();
+                };
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (!cmdVel || !ros || !ros.isConnected) return; 
+
+                const key = e.key.toLowerCase();
+                if (keysPressed[key]) return;
+
+                const speeds = getSpeeds();
+                keysPressed[key] = true;
+
+                switch (key) {
+                    case 'w': currentLinearX = speeds.linear_x; break;
+                    case 'x': currentLinearX = -speeds.linear_x; break;
+                    case 'a': currentLinearY = speeds.linear_y; break;
+                    case 'd': currentLinearY = -speeds.linear_y; break;
+                    case 'q': currentAngularZ = speeds.angular_z; break;
+                    case 'e': currentAngularZ = -speeds.angular_z; break;
+                    case 's': stopRobot(); break;
+                    default: return;
+                }
+
+                publishCurrentTwist();
+                e.preventDefault();
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if (!cmdVel || !ros || !ros.isConnected) return; 
+
+                const key = e.key.toLowerCase();
+                if (!keysPressed[key]) return;
+
+                switch (key) {
+                    case 'w': case 'x': currentLinearX = 0.0; break;
+                    case 'a': case 'd': currentLinearY = 0.0; break;
+                    case 'q': case 'e': currentAngularZ = 0.0; break;
+                    default: delete keysPressed[key]; return;
+                }
+
+                delete keysPressed[key];
+
+                if (key !== 's') {
+                    publishCurrentTwist();
+                }
+            });
+
+            // ==========================================================
+            // Request 2: 本地 USB 摄像头逻辑 (全局摄像头)
+            // ==========================================================
+            const openUsbBtn  = document.getElementById('open_usb_cam');
+            const usbVideo    = document.getElementById('usb_video');
+            const saveUsbBtn  = document.getElementById('save_usb_btn');
+            let   usbStream   = null;
+
+            if (openUsbBtn) {
+                openUsbBtn.onclick = async () => {
+                    if (usbStream) {         // 已经打开 → 关闭
+                        usbStream.getTracks().forEach(t => t.stop());
+                        usbVideo.srcObject = null;
+                        usbStream = null;
+                        openUsbBtn.textContent = '打开';
+                        // 禁用保存按钮
+                        saveUsbBtn.disabled = true;
+                        saveUsbBtn.style.backgroundColor = '#7f8c8d';
+                        saveUsbBtn.style.borderColor = '#7f8c8d';
+                        saveUsbBtn.style.cursor = 'not-allowed';
+                        return;
+                    }
+                    try {
+                        const constraints = { video: { width: 1280, height: 720 }, audio: false };
+                        usbStream = await navigator.mediaDevices.getUserMedia(constraints);
+                        usbVideo.srcObject = usbStream;
+                        openUsbBtn.textContent = '关闭';
+                        // 启用保存按钮
+                        saveUsbBtn.disabled = false;
+                        saveUsbBtn.style.backgroundColor = '#3498db';
+                        saveUsbBtn.style.borderColor = '#3498db';
+                        saveUsbBtn.style.cursor = 'pointer';
+                    } catch (err) {
+                        alert('无法访问摄像头：' + err.message);
+                    }
+                };
+            }
+            
+            // 全局摄像头保存逻辑
+            if (saveUsbBtn) {
+                saveUsbBtn.onclick = () => {
+                    if (!usbVideo || !usbVideo.srcObject) return;
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = usbVideo.videoWidth;
+                    canvas.height = usbVideo.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(usbVideo, 0, 0, canvas.width, canvas.height);
+                    
+                    const link = document.createElement('a');
+                    link.download = 'global_cam_snapshot_' + Date.now() + '.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                };
+            }
+        });
+    </script>
+</body>
+</html>
